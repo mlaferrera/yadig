@@ -12,16 +12,18 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"strconv"
 	"sync"
 )
 
-var version = "0.1"
+var version = "0.1.1"
 var apiURL = "https://dns.google.com/resolve"
 var ednsSubnet = "0.0.0.0/0"
 
@@ -102,8 +104,9 @@ func formattedPrint(r *chan []byte, resultWg *sync.WaitGroup) {
 		}
 
 		for _, v := range response.Answer {
-			fmt.Printf("Query: %v, ", v.Name)
-			fmt.Printf("DNSSEC: %v, ", dnssec)
+			var resultBuffer bytes.Buffer
+			resultBuffer.WriteString("Query: " + v.Name + ", ")
+			resultBuffer.WriteString("DNSSEC: " + strconv.FormatBool(dnssec) + ", ")
 
 			var rrtype string
 
@@ -113,15 +116,17 @@ func formattedPrint(r *chan []byte, resultWg *sync.WaitGroup) {
 				rrtype = string(v.Type)
 			}
 
-			fmt.Printf("Type: %v, ", rrtype)
-			fmt.Printf("TTL: %v, ", v.TTL)
-			fmt.Printf("Response: %v", v.Data)
-			fmt.Println()
+			resultBuffer.WriteString("Type: " + rrtype + ", ")
+			resultBuffer.WriteString("TTL: " + strconv.Itoa(v.TTL) + ", ")
+			resultBuffer.WriteString("Response: " + v.Data)
+
+			fmt.Println(resultBuffer.String())
 		}
 
 		for _, v := range response.Authority {
-			fmt.Printf("Query: %v, ", query)
-			fmt.Printf("DNSSEC: %v, ", dnssec)
+			var resultBuffer bytes.Buffer
+			resultBuffer.WriteString("Query: " + v.Name + ", ")
+			resultBuffer.WriteString("DNSSEC: " + strconv.FormatBool(dnssec) + ", ")
 
 			var rrtype string
 
@@ -131,10 +136,11 @@ func formattedPrint(r *chan []byte, resultWg *sync.WaitGroup) {
 				rrtype = string(v.Type)
 			}
 
-			fmt.Printf("Type: %v, ", rrtype)
-			fmt.Printf("TTL: %v, ", v.TTL)
-			fmt.Printf("Response: %v", v.Data)
-			fmt.Println()
+			resultBuffer.WriteString("Type: " + rrtype + ", ")
+			resultBuffer.WriteString("TTL: " + strconv.Itoa(v.TTL) + ", ")
+			resultBuffer.WriteString("Response: " + v.Data)
+
+			fmt.Println(resultBuffer.String())
 		}
 
 		resultWg.Done()
@@ -178,7 +184,15 @@ func main() {
 
 	queryHost := flag.String("q", "", "Host to conduct a query on")
 	queryType := flag.String("t", "A", "DNS record type")
+	printVersion := flag.Bool("v", false, "Display information about yadig")
 	flag.Parse()
+
+	if *printVersion == true {
+		fmt.Println("yadig v", version)
+		fmt.Println(" A command line DNS resolver for Google's HTTPS DNS Service")
+		fmt.Println(" https://github.com/mlaferrera/yadig")
+		os.Exit(0)
+	}
 
 	queryMap := make(map[string]string)
 
